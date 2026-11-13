@@ -17,7 +17,7 @@ namespace SkziScanner
             AppDomain.CurrentDomain.UnhandledException += (sender, args) => Logger.LogError("Критическая ошибка", args.ExceptionObject as Exception);
 
             Logger.LogInfo("Приложение запущено");
-            Application.Run(new Form1());
+            Application.Run(new Form());
             Logger.LogInfo("Выход из приложения");
         }
     }

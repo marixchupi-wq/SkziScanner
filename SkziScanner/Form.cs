@@ -8,17 +8,17 @@ using System.Windows.Forms;
 namespace SkziScanner
 {
     // Главная форма панели управления модулем сбора данных о СКЗИ
-    public partial class Form1 : Form
+    public partial class Form : System.Windows.Forms.Form
     {
         // Конструктор главной формы приложения
-        public Form1()
+        public Form()
         {
             InitializeComponent();
             AddUiLog("Панель управления инициализирована.");
         }
 
         // Обработчик нажатия кнопки запуска сканирования ПК
-        private async void btnScan_Click(object sender, EventArgs e)
+        private async void ScanButton_Click(object sender, EventArgs e)
         {
             string rawPcs = txtTargetPcs.Text.Trim();
             string connString = txtConnectionString.Text.Trim();
@@ -34,8 +34,8 @@ namespace SkziScanner
                 .Where(pc => !string.IsNullOrEmpty(pc))
                 .ToList();
 
-            btnScan.Enabled = false;
-            btnRefresh.Enabled = false;
+            scanButton.Enabled = false;
+            refreshButton.Enabled = false;
             AddUiLog("Запуск сканирования (" + targetComputers.Count + " ПК)...");
 
             try
@@ -63,16 +63,16 @@ namespace SkziScanner
             }
             finally
             {
-                btnScan.Enabled = true;
-                btnRefresh.Enabled = true;
+                scanButton.Enabled = true;
+                refreshButton.Enabled = true;
             }
         }
 
         // Обработчик нажатия кнопки ручного обновления таблицы из БД
-        private async void btnRefresh_Click(object sender, EventArgs e)
+        private async void RefreshButton_Click(object sender, EventArgs e)
         {
             string connString = txtConnectionString.Text.Trim();
-            btnRefresh.Enabled = false;
+            refreshButton.Enabled = false;
             AddUiLog("Запрос актуальных данных из БД...");
 
             try
@@ -93,7 +93,7 @@ namespace SkziScanner
             }
             finally
             {
-                btnRefresh.Enabled = true;
+                refreshButton.Enabled = true;
             }
         }
 

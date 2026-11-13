@@ -1,6 +1,6 @@
 ﻿namespace SkziScanner
 {
-    partial class Form1
+    partial class Form
     {
         /// <summary>
         /// Обязательная переменная конструктора.
@@ -32,8 +32,8 @@
             this.label1 = new System.Windows.Forms.Label();
             this.txtConnectionString = new System.Windows.Forms.TextBox();
             this.label2 = new System.Windows.Forms.Label();
-            this.btnScan = new System.Windows.Forms.Button();
-            this.btnRefresh = new System.Windows.Forms.Button();
+            this.scanButton = new System.Windows.Forms.Button();
+            this.refreshButton = new System.Windows.Forms.Button();
             this.dgvCertificates = new System.Windows.Forms.DataGridView();
             this.label3 = new System.Windows.Forms.Label();
             this.txtLogs = new System.Windows.Forms.TextBox();
@@ -75,23 +75,23 @@
             // 
             // btnScan
             // 
-            this.btnScan.Location = new System.Drawing.Point(630, 93);
-            this.btnScan.Name = "btnScan";
-            this.btnScan.Size = new System.Drawing.Size(146, 23);
-            this.btnScan.TabIndex = 4;
-            this.btnScan.Text = "Сканировать ПК";
-            this.btnScan.UseVisualStyleBackColor = true;
-            this.btnScan.Click += new System.EventHandler(this.btnScan_Click);
+            this.scanButton.Location = new System.Drawing.Point(630, 93);
+            this.scanButton.Name = "btnScan";
+            this.scanButton.Size = new System.Drawing.Size(146, 23);
+            this.scanButton.TabIndex = 4;
+            this.scanButton.Text = "Сканировать ПК";
+            this.scanButton.UseVisualStyleBackColor = true;
+            this.scanButton.Click += new System.EventHandler(this.ScanButton_Click);
             // 
             // btnRefresh
             // 
-            this.btnRefresh.Location = new System.Drawing.Point(816, 93);
-            this.btnRefresh.Name = "btnRefresh";
-            this.btnRefresh.Size = new System.Drawing.Size(154, 23);
-            this.btnRefresh.TabIndex = 5;
-            this.btnRefresh.Text = "Обновить таблицу";
-            this.btnRefresh.UseVisualStyleBackColor = true;
-            this.btnRefresh.Click += new System.EventHandler(this.btnRefresh_Click);
+            this.refreshButton.Location = new System.Drawing.Point(816, 93);
+            this.refreshButton.Name = "btnRefresh";
+            this.refreshButton.Size = new System.Drawing.Size(154, 23);
+            this.refreshButton.TabIndex = 5;
+            this.refreshButton.Text = "Обновить таблицу";
+            this.refreshButton.UseVisualStyleBackColor = true;
+            this.refreshButton.Click += new System.EventHandler(this.RefreshButton_Click);
             // 
             // dgvCertificates
             // 
@@ -134,8 +134,8 @@
             this.Controls.Add(this.txtLogs);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.dgvCertificates);
-            this.Controls.Add(this.btnRefresh);
-            this.Controls.Add(this.btnScan);
+            this.Controls.Add(this.refreshButton);
+            this.Controls.Add(this.scanButton);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.txtConnectionString);
             this.Controls.Add(this.label1);
@@ -154,8 +154,8 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TextBox txtConnectionString;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Button btnScan;
-        private System.Windows.Forms.Button btnRefresh;
+        private System.Windows.Forms.Button scanButton;
+        private System.Windows.Forms.Button refreshButton;
         private System.Windows.Forms.DataGridView dgvCertificates;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.TextBox txtLogs;
