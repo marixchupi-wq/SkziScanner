@@ -28,25 +28,27 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.txtTargetPcs = new System.Windows.Forms.TextBox();
+            this.targetPcsTextBox = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
-            this.txtConnectionString = new System.Windows.Forms.TextBox();
+            this.connectionStringTextBox = new System.Windows.Forms.TextBox();
             this.label2 = new System.Windows.Forms.Label();
             this.scanButton = new System.Windows.Forms.Button();
             this.refreshButton = new System.Windows.Forms.Button();
-            this.dgvCertificates = new System.Windows.Forms.DataGridView();
+            this.certificatesDataGridView = new System.Windows.Forms.DataGridView();
             this.label3 = new System.Windows.Forms.Label();
-            this.txtLogs = new System.Windows.Forms.TextBox();
-            ((System.ComponentModel.ISupportInitialize)(this.dgvCertificates)).BeginInit();
+            this.logsTextBox = new System.Windows.Forms.TextBox();
+            ((System.ComponentModel.ISupportInitialize)(this.certificatesDataGridView)).BeginInit();
             this.SuspendLayout();
             // 
-            // txtTargetPcs
+            // targetPcsTextBox
             // 
-            this.txtTargetPcs.Location = new System.Drawing.Point(292, 15);
-            this.txtTargetPcs.Name = "txtTargetPcs";
-            this.txtTargetPcs.Size = new System.Drawing.Size(678, 22);
-            this.txtTargetPcs.TabIndex = 0;
-            this.txtTargetPcs.Text = "localhost";
+            this.targetPcsTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.targetPcsTextBox.Location = new System.Drawing.Point(292, 15);
+            this.targetPcsTextBox.Name = "targetPcsTextBox";
+            this.targetPcsTextBox.Size = new System.Drawing.Size(880, 22);
+            this.targetPcsTextBox.TabIndex = 0;
+            this.targetPcsTextBox.Text = "localhost";
             // 
             // label1
             // 
@@ -57,12 +59,14 @@
             this.label1.TabIndex = 1;
             this.label1.Text = "Компьютеры в сети (через запятую):";
             // 
-            // txtConnectionString
+            // connectionStringTextBox
             // 
-            this.txtConnectionString.Location = new System.Drawing.Point(292, 52);
-            this.txtConnectionString.Name = "txtConnectionString";
-            this.txtConnectionString.Size = new System.Drawing.Size(678, 22);
-            this.txtConnectionString.TabIndex = 2;
+            this.connectionStringTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.connectionStringTextBox.Location = new System.Drawing.Point(292, 52);
+            this.connectionStringTextBox.Name = "connectionStringTextBox";
+            this.connectionStringTextBox.Size = new System.Drawing.Size(880, 22);
+            this.connectionStringTextBox.TabIndex = 2;
             // 
             // label2
             // 
@@ -75,7 +79,8 @@
             // 
             // scanButton
             // 
-            this.scanButton.Location = new System.Drawing.Point(630, 93);
+            this.scanButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.scanButton.Location = new System.Drawing.Point(832, 93);
             this.scanButton.Name = "scanButton";
             this.scanButton.Size = new System.Drawing.Size(146, 23);
             this.scanButton.TabIndex = 4;
@@ -85,7 +90,8 @@
             // 
             // refreshButton
             // 
-            this.refreshButton.Location = new System.Drawing.Point(816, 93);
+            this.refreshButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.refreshButton.Location = new System.Drawing.Point(1018, 93);
             this.refreshButton.Name = "refreshButton";
             this.refreshButton.Size = new System.Drawing.Size(154, 23);
             this.refreshButton.TabIndex = 5;
@@ -93,22 +99,27 @@
             this.refreshButton.UseVisualStyleBackColor = true;
             this.refreshButton.Click += new System.EventHandler(this.RefreshButton_Click);
             // 
-            // dgvCertificates
+            // certificatesDataGridView
             // 
-            this.dgvCertificates.AllowUserToAddRows = false;
-            this.dgvCertificates.AllowUserToDeleteRows = false;
-            this.dgvCertificates.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-            this.dgvCertificates.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dgvCertificates.Location = new System.Drawing.Point(12, 134);
-            this.dgvCertificates.Name = "dgvCertificates";
-            this.dgvCertificates.ReadOnly = true;
-            this.dgvCertificates.RowHeadersWidth = 51;
-            this.dgvCertificates.RowTemplate.Height = 24;
-            this.dgvCertificates.Size = new System.Drawing.Size(958, 375);
-            this.dgvCertificates.TabIndex = 6;
+            this.certificatesDataGridView.AllowUserToAddRows = false;
+            this.certificatesDataGridView.AllowUserToDeleteRows = false;
+            this.certificatesDataGridView.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.certificatesDataGridView.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.certificatesDataGridView.BackgroundColor = System.Drawing.Color.White;
+            this.certificatesDataGridView.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.certificatesDataGridView.Location = new System.Drawing.Point(12, 134);
+            this.certificatesDataGridView.Name = "certificatesDataGridView";
+            this.certificatesDataGridView.ReadOnly = true;
+            this.certificatesDataGridView.RowHeadersWidth = 51;
+            this.certificatesDataGridView.RowTemplate.Height = 24;
+            this.certificatesDataGridView.Size = new System.Drawing.Size(1160, 375);
+            this.certificatesDataGridView.TabIndex = 6;
             // 
             // label3
             // 
+            this.label3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.label3.AutoSize = true;
             this.label3.Location = new System.Drawing.Point(15, 523);
             this.label3.Name = "label3";
@@ -116,33 +127,36 @@
             this.label3.TabIndex = 8;
             this.label3.Text = "Журнал событий (логи):";
             // 
-            // txtLogs
+            // logsTextBox
             // 
-            this.txtLogs.Location = new System.Drawing.Point(15, 542);
-            this.txtLogs.Multiline = true;
-            this.txtLogs.Name = "txtLogs";
-            this.txtLogs.ReadOnly = true;
-            this.txtLogs.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtLogs.Size = new System.Drawing.Size(955, 153);
-            this.txtLogs.TabIndex = 9;
+            this.logsTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.logsTextBox.Location = new System.Drawing.Point(15, 542);
+            this.logsTextBox.Multiline = true;
+            this.logsTextBox.Name = "logsTextBox";
+            this.logsTextBox.ReadOnly = true;
+            this.logsTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.logsTextBox.Size = new System.Drawing.Size(1157, 153);
+            this.logsTextBox.TabIndex = 9;
             // 
             // Form
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(982, 707);
-            this.Controls.Add(this.txtLogs);
+            this.ClientSize = new System.Drawing.Size(1184, 707);
+            this.Controls.Add(this.logsTextBox);
             this.Controls.Add(this.label3);
-            this.Controls.Add(this.dgvCertificates);
+            this.Controls.Add(this.certificatesDataGridView);
             this.Controls.Add(this.refreshButton);
             this.Controls.Add(this.scanButton);
             this.Controls.Add(this.label2);
-            this.Controls.Add(this.txtConnectionString);
+            this.Controls.Add(this.connectionStringTextBox);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.txtTargetPcs);
+            this.Controls.Add(this.targetPcsTextBox);
+            this.ForeColor = System.Drawing.SystemColors.ControlText;
             this.Name = "Form";
             this.Text = "Модуль сбора данных о СКЗИ";
-            ((System.ComponentModel.ISupportInitialize)(this.dgvCertificates)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.certificatesDataGridView)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -150,15 +164,15 @@
 
         #endregion
 
-        private System.Windows.Forms.TextBox txtTargetPcs;
+        private System.Windows.Forms.TextBox targetPcsTextBox;
         private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.TextBox txtConnectionString;
+        private System.Windows.Forms.TextBox connectionStringTextBox;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button scanButton;
         private System.Windows.Forms.Button refreshButton;
-        private System.Windows.Forms.DataGridView dgvCertificates;
+        private System.Windows.Forms.DataGridView certificatesDataGridView;
         private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.TextBox txtLogs;
+        private System.Windows.Forms.TextBox logsTextBox;
     }
 }
 

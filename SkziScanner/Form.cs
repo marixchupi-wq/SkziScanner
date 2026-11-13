@@ -20,8 +20,8 @@ namespace SkziScanner
         // Обработчик нажатия кнопки запуска сканирования ПК
         private async void ScanButton_Click(object sender, EventArgs e)
         {
-            string rawPcs = txtTargetPcs.Text.Trim();
-            string connString = txtConnectionString.Text.Trim();
+            string rawPcs = targetPcsTextBox.Text.Trim();
+            string connString = connectionStringTextBox.Text.Trim();
 
             if (string.IsNullOrEmpty(rawPcs))
             {
@@ -52,7 +52,7 @@ namespace SkziScanner
                     return dbHelper.GetAllCertificates();
                 });
 
-                dgvCertificates.DataSource = updatedTable;
+                certificatesDataGridView.DataSource = updatedTable;
                 AddUiLog("Сканирование успешно завершено. Таблица обновлена.");
             }
             catch (Exception ex)
@@ -71,7 +71,7 @@ namespace SkziScanner
         // Обработчик нажатия кнопки ручного обновления таблицы из БД
         private async void RefreshButton_Click(object sender, EventArgs e)
         {
-            string connString = txtConnectionString.Text.Trim();
+            string connString = connectionStringTextBox.Text.Trim();
             refreshButton.Enabled = false;
             AddUiLog("Запрос актуальных данных из БД...");
 
@@ -83,7 +83,7 @@ namespace SkziScanner
                     return dbHelper.GetAllCertificates();
                 });
 
-                dgvCertificates.DataSource = table;
+                certificatesDataGridView.DataSource = table;
                 AddUiLog("Данные из БД загружены (строк: " + table.Rows.Count + ").");
             }
             catch (Exception ex)
@@ -102,7 +102,7 @@ namespace SkziScanner
         {
             Logger.LogInfo(message);
             string timeStamp = DateTime.Now.ToString("dd.MM.yy HH:mm:ss.fff");
-            txtLogs.AppendText(timeStamp + " - " + message + Environment.NewLine);
+            logsTextBox.AppendText(timeStamp + " - " + message + Environment.NewLine);
         }
     }
 }
