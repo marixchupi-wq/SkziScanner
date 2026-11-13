@@ -17,8 +17,8 @@ namespace SkziScanner
                 // Временные тестовые данные (Разработчик 1 заменит этот блок на реальный парсинг)
                 CertificateInfo testCert = new CertificateInfo();
                 testCert.SerialNumber = "01D98F4A00B2" + pcName.GetHashCode().ToString("X");
-                testCert.OwnerName = "Иванов Иван Иванович (" + pcName + ")";
-                testCert.IssuerName = "УЦ ФГУП ГРЧЦ";
+                testCert.OwnerName = "Admin (" + pcName + ")";
+                testCert.IssuerName = "АКТ(ф)СПбГГУТ";
                 testCert.CryptoProVersion = "5.0.12000";
                 testCert.IsLicenseEmbedded = true;
 
