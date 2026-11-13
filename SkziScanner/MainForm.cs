@@ -8,10 +8,10 @@ using System.Windows.Forms;
 namespace SkziScanner
 {
     // Главная форма панели управления модулем сбора данных о СКЗИ
-    public partial class Form : System.Windows.Forms.Form
+    public partial class MainForm : System.Windows.Forms.Form
     {
         // Конструктор главной формы приложения
-        public Form()
+        public MainForm()
         {
             InitializeComponent();
             AddUiLog("Панель управления инициализирована.");

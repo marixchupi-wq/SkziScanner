@@ -6,205 +6,209 @@ using Microsoft.Win32;
 
 namespace SkziScanner
 {
-    // Класс для сканирования директорий, хранилища сертификатов и сбора данных о СКЗИ
+    // Класс для сбора данных о сертификатах и СКЗИ напрямую из реестра Windows
     public class ScannerEngine
     {
-        // Основной метод сканирования списка компьютеров из формы
+        // Сканирует список компьютеров в локальной сети через редактор реестра
         public List<CertificateInfo> ScanComputers(List<string> targetComputers)
         {
             List<CertificateInfo> results = new List<CertificateInfo>();
-            List<string> configDirs = GetDirectoriesFromConfig("config.txt");
+            List<string> registryPaths = GetRegistryPathsFromConfig("config.txt");
 
-            if (targetComputers == null || targetComputers.Count == 0)
+            foreach (string pc in targetComputers)
             {
-                targetComputers = new List<string> { Environment.MachineName };
+                try
+                {
+                    Logger.LogInfo("Подключение к реестру ПК: " + pc);
+                    string cryptoProVer = GetCryptoProVersion(pc);
+
+                    // Проверяем оба корневых раздела реестра: LocalMachine и CurrentUser
+                    RegistryHive[] hives = new RegistryHive[] { RegistryHive.LocalMachine, RegistryHive.CurrentUser };
+                    foreach (RegistryHive hive in hives)
+                    {
+                        using (RegistryKey baseKey = OpenTargetRegistry(pc, hive))
+                        {
+                            foreach (string regPath in registryPaths)
+                            {
+                                List<CertificateInfo> pcCerts = ReadCertificatesFromRegistry(baseKey, regPath, cryptoProVer);
+                                results.AddRange(pcCerts);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("Ошибка доступа к реестру ПК " + pc, ex);
+                }
             }
 
-            foreach (string rawName in targetComputers)
+            return results;
+        }
+
+        // Открывает нужный корневой раздел реестра локально или по сети
+        private RegistryKey OpenTargetRegistry(string pcName, RegistryHive hive)
+        {
+            if (pcName.Equals("localhost", StringComparison.OrdinalIgnoreCase) || pcName == "127.0.0.1" || pcName.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase))
             {
-                string pcName = rawName.Trim();
-                if (string.IsNullOrEmpty(pcName))
+                return RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
+            }
+
+            return RegistryKey.OpenRemoteBaseKey(hive, pcName, RegistryView.Registry64);
+        }
+
+        // Читает список веток реестра для сканирования из конфигурационного файла
+        private List<string> GetRegistryPathsFromConfig(string configPath)
+        {
+            List<string> paths = new List<string>();
+            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configPath);
+
+            if (!File.Exists(fullPath))
+            {
+                Logger.LogInfo("Файл config.txt не найден, используется ветка по умолчанию.");
+                paths.Add(@"SOFTWARE\Microsoft\SystemCertificates\My\Certificates");
+                return paths;
+            }
+
+            string[] lines = File.ReadAllLines(fullPath);
+            foreach (string line in lines)
+            {
+                string trimmed = line.Trim();
+                if (!string.IsNullOrEmpty(trimmed) && !trimmed.StartsWith("#"))
                 {
-                    continue;
+                    paths.Add(trimmed);
+                }
+            }
+
+            return paths;
+        }
+
+        // Определяет версию установленного КриптоПро CSP из реестра
+        private string GetCryptoProVersion(string pcName)
+        {
+            using (RegistryKey baseKey = OpenTargetRegistry(pcName, RegistryHive.LocalMachine))
+            {
+                string[] possiblePaths = new string[]
+                {
+                    @"SOFTWARE\Crypto Pro\Cryptography\CurrentVersion",
+                    @"SOFTWARE\WOW6432Node\Crypto Pro\Cryptography\CurrentVersion"
+                };
+
+                foreach (string path in possiblePaths)
+                {
+                    using (RegistryKey key = baseKey.OpenSubKey(path))
+                    {
+                        if (key != null)
+                        {
+                            object versionObj = key.GetValue("Version");
+                            if (versionObj != null)
+                            {
+                                return versionObj.ToString();
+                            }
+                        }
+                    }
+                }
+            }
+
+            return "Не установлен";
+        }
+
+        // Извлекает и парсит все сертификаты из указанной ветки реестра
+        private List<CertificateInfo> ReadCertificatesFromRegistry(RegistryKey baseKey, string regPath, string cryptoProVersion)
+        {
+            List<CertificateInfo> list = new List<CertificateInfo>();
+
+            using (RegistryKey certsRoot = baseKey.OpenSubKey(regPath))
+            {
+                if (certsRoot == null)
+                {
+                    return list;
                 }
 
-                Logger.LogInfo("Старт сканирования ПК: " + pcName);
-                bool isLocal = IsLocalMachine(pcName);
-                string cryptoVersion = GetCryptoProVersion(pcName, isLocal);
-
-                // 1. Сканируем папки из конфига
-                foreach (string dir in configDirs)
+                string[] thumbprints = certsRoot.GetSubKeyNames();
+                foreach (string thumbprint in thumbprints)
                 {
                     try
                     {
-                        string path = dir;
-                        if (!isLocal && dir.Length >= 2 && dir[1] == ':')
+                        using (RegistryKey certKey = certsRoot.OpenSubKey(thumbprint))
                         {
-                            path = @"\\" + pcName + @"\" + dir[0] + "$" + dir.Substring(2);
-                        }
-
-                        if (Directory.Exists(path))
-                        {
-                            string[] files = Directory.GetFiles(path, "*.*", SearchOption.AllDirectories);
-                            foreach (string file in files)
+                            if (certKey == null)
                             {
-                                string ext = Path.GetExtension(file).ToLower();
-                                if (ext == ".cer" || ext == ".crt")
+                                continue;
+                            }
+
+                            byte[] blob = certKey.GetValue("Blob") as byte[];
+                            if (blob == null)
+                            {
+                                continue;
+                            }
+
+                            X509Certificate2 cert = ParseCertificateFromBlob(blob);
+                            if (cert != null)
+                            {
+                                CertificateInfo info = new CertificateInfo
                                 {
-                                    try
-                                    {
-                                        X509Certificate2 cert = new X509Certificate2(file);
-                                        results.Add(CreateCertInfo(cert, cryptoVersion));
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Logger.LogError("Ошибка чтения файла " + file, ex);
-                                    }
-                                }
+                                    SerialNumber = cert.SerialNumber,
+                                    OwnerName = cert.GetNameInfo(X509NameType.SimpleName, false),
+                                    IssuerName = cert.GetNameInfo(X509NameType.SimpleName, true),
+                                    CryptoProVersion = cryptoProVersion,
+                                    IsLicenseEmbedded = CheckEmbeddedLicense(cert)
+                                };
+
+                                list.Add(info);
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogError("Ошибка доступа к папке " + dir + " на " + pcName, ex);
-                    }
-                }
-
-                // 2. Сканируем личные сертификаты в хранилище Windows
-                try
-                {
-                    X509Store store = isLocal
-                        ? new X509Store(StoreName.My, StoreLocation.CurrentUser)
-                        : new X509Store(@"\\" + pcName + @"\My", StoreLocation.LocalMachine);
-
-                    store.Open(OpenFlags.ReadOnly);
-                    foreach (X509Certificate2 cert in store.Certificates)
-                    {
-                        results.Add(CreateCertInfo(cert, cryptoVersion));
-                    }
-                    store.Close();
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError("Ошибка чтения хранилища сертификатов на " + pcName, ex);
-                }
-            }
-
-            Logger.LogInfo("Сканирование завершено. Найдено сертификатов: " + results.Count);
-            return results;
-        }
-
-        // Проверяет, относится ли адрес к текущему локальному компьютеру
-        private bool IsLocalMachine(string pcName)
-        {
-            return pcName.Equals("localhost", StringComparison.OrdinalIgnoreCase)
-                || pcName == "127.0.0.1"
-                || pcName == "."
-                || pcName.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase);
-        }
-
-        // Читает список путей для сканирования из текстового конфига
-        private List<string> GetDirectoriesFromConfig(string filePath)
-        {
-            List<string> dirs = new List<string>();
-            try
-            {
-                if (!File.Exists(filePath))
-                {
-                    Logger.LogInfo("Файл конфигурации не найден: " + filePath);
-                    return dirs;
-                }
-
-                foreach (string line in File.ReadAllLines(filePath))
-                {
-                    string cleanLine = line.Trim();
-                    if (string.IsNullOrEmpty(cleanLine) || cleanLine.StartsWith("DB="))
-                    {
-                        continue;
-                    }
-
-                    if (cleanLine.StartsWith("DIR="))
-                    {
-                        dirs.Add(cleanLine.Substring(4).Trim());
-                    }
-                    else
-                    {
-                        dirs.Add(cleanLine);
+                        Logger.LogError("Ошибка разбора сертификата в реестре (" + thumbprint + ")", ex);
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                Logger.LogError("Ошибка чтения конфига " + filePath, ex);
-            }
-            return dirs;
+
+            return list;
         }
 
-        // Собирает нужные поля из сертификата в объект модели
-        private CertificateInfo CreateCertInfo(X509Certificate2 cert, string cryptoVersion)
+        // Вырезает бинарное тело X.509 сертификата из структуры параметра Blob реестра Windows
+        private X509Certificate2 ParseCertificateFromBlob(byte[] blob)
         {
-            bool hasLicense = false;
-            foreach (X509Extension ext in cert.Extensions)
+            int offset = 0;
+            while (offset + 12 <= blob.Length)
             {
-                if (ext.Oid != null && ext.Oid.Value == "1.2.643.2.2.49.2")
+                int propId = BitConverter.ToInt32(blob, offset);
+                int dataLength = BitConverter.ToInt32(blob, offset + 8);
+                offset = offset + 12;
+
+                if (offset + dataLength > blob.Length || dataLength <= 0)
                 {
-                    hasLicense = true;
                     break;
                 }
+
+                // Идентификатор 32 (0x20) соответствует самому телу сертификата CERT_CERT_PROP_ID
+                if (propId == 32)
+                {
+                    byte[] rawCertData = new byte[dataLength];
+                    Array.Copy(blob, offset, rawCertData, 0, dataLength);
+                    return new X509Certificate2(rawCertData);
+                }
+
+                offset = offset + dataLength;
             }
 
-            CertificateInfo info = new CertificateInfo();
-            info.SerialNumber = cert.SerialNumber;
-            info.OwnerName = cert.GetNameInfo(X509NameType.SimpleName, false);
-            info.IssuerName = cert.GetNameInfo(X509NameType.SimpleName, true);
-            info.CryptoProVersion = cryptoVersion;
-            info.IsLicenseEmbedded = hasLicense;
-            return info;
+            return null;
         }
 
-        // Определяет версию установленного КриптоПро CSP через реестр ПК
-        private string GetCryptoProVersion(string pcName, bool isLocal)
+        // Проверяет наличие встроенной лицензии КриптоПро по OID 1.2.643.2.2.49.2
+        private bool CheckEmbeddedLicense(X509Certificate2 cert)
         {
-            string regPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
-            RegistryView[] views = new RegistryView[] { RegistryView.Registry64, RegistryView.Registry32 };
-
-            foreach (RegistryView view in views)
+            foreach (X509Extension ext in cert.Extensions)
             {
-                try
+                if (ext.Oid != null && ext.Oid.Value.StartsWith("1.2.643.2.2.49"))
                 {
-                    RegistryKey baseKey = isLocal
-                        ? RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view)
-                        : RegistryKey.OpenRemoteBaseKey(RegistryHive.LocalMachine, pcName, view);
-
-                    using (baseKey)
-                    using (RegistryKey key = baseKey.OpenSubKey(regPath))
-                    {
-                        if (key == null)
-                        {
-                            continue;
-                        }
-
-                        foreach (string subName in key.GetSubKeyNames())
-                        {
-                            using (RegistryKey subKey = key.OpenSubKey(subName))
-                            {
-                                object name = subKey.GetValue("DisplayName");
-                                if (name != null && name.ToString().Contains("CryptoPro CSP"))
-                                {
-                                    object ver = subKey.GetValue("DisplayVersion");
-                                    return ver != null ? ver.ToString() : "Установлен";
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError("Ошибка проверки реестра на " + pcName, ex);
+                    return true;
                 }
             }
 
-            return "Не установлен";
+            return false;
         }
     }
 }

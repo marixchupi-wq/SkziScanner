@@ -1,6 +1,6 @@
 ﻿namespace SkziScanner
 {
-    partial class Form
+    partial class MainForm
     {
         /// <summary>
         /// Обязательная переменная конструктора.
