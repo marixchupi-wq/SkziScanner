@@ -73,20 +73,20 @@
             this.label2.TabIndex = 3;
             this.label2.Text = "Строка подключения MSSQL:";
             // 
-            // btnScan
+            // scanButton
             // 
             this.scanButton.Location = new System.Drawing.Point(630, 93);
-            this.scanButton.Name = "btnScan";
+            this.scanButton.Name = "scanButton";
             this.scanButton.Size = new System.Drawing.Size(146, 23);
             this.scanButton.TabIndex = 4;
             this.scanButton.Text = "Сканировать ПК";
             this.scanButton.UseVisualStyleBackColor = true;
             this.scanButton.Click += new System.EventHandler(this.ScanButton_Click);
             // 
-            // btnRefresh
+            // refreshButton
             // 
             this.refreshButton.Location = new System.Drawing.Point(816, 93);
-            this.refreshButton.Name = "btnRefresh";
+            this.refreshButton.Name = "refreshButton";
             this.refreshButton.Size = new System.Drawing.Size(154, 23);
             this.refreshButton.TabIndex = 5;
             this.refreshButton.Text = "Обновить таблицу";
@@ -123,14 +123,14 @@
             this.txtLogs.Name = "txtLogs";
             this.txtLogs.ReadOnly = true;
             this.txtLogs.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtLogs.Size = new System.Drawing.Size(955, 22);
+            this.txtLogs.Size = new System.Drawing.Size(955, 153);
             this.txtLogs.TabIndex = 9;
             // 
-            // Form1
+            // Form
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(982, 603);
+            this.ClientSize = new System.Drawing.Size(982, 707);
             this.Controls.Add(this.txtLogs);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.dgvCertificates);
@@ -140,7 +140,7 @@
             this.Controls.Add(this.txtConnectionString);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.txtTargetPcs);
-            this.Name = "Form1";
+            this.Name = "Form";
             this.Text = "Модуль сбора данных о СКЗИ";
             ((System.ComponentModel.ISupportInitialize)(this.dgvCertificates)).EndInit();
             this.ResumeLayout(false);
