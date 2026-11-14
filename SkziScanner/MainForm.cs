@@ -19,6 +19,9 @@ namespace SkziScanner
         public MainForm()
         {
             InitializeComponent();
+
+            this.ActiveControl = scanButton;
+
             AddUiLog("Панель управления инициализирована.");
 
             if (File.Exists("connection.settings"))
@@ -78,6 +81,8 @@ namespace SkziScanner
 
             scanButton.Enabled = false;
             refreshButton.Enabled = false;
+            editComputersButton.Enabled = false;
+            dbSettingsButton.Enabled = false;
             AddUiLog("Запуск сканирования (" + targetComputers.Count + " ПК)...");
 
             try
@@ -107,6 +112,8 @@ namespace SkziScanner
             {
                 scanButton.Enabled = true;
                 refreshButton.Enabled = true;
+                editComputersButton.Enabled = true;
+                dbSettingsButton.Enabled = true;
             }
         }
 
@@ -119,7 +126,10 @@ namespace SkziScanner
                 return;
             }
 
+            scanButton.Enabled = false;
             refreshButton.Enabled = false;
+            editComputersButton.Enabled = false;
+            dbSettingsButton.Enabled = false;
             AddUiLog("Запрос актуальных данных из БД...");
 
             try
@@ -140,7 +150,10 @@ namespace SkziScanner
             }
             finally
             {
+                scanButton.Enabled = true;
                 refreshButton.Enabled = true;
+                editComputersButton.Enabled = true;
+                dbSettingsButton.Enabled = true;
             }
         }
 
@@ -163,6 +176,25 @@ namespace SkziScanner
                 {
                     currentConnectionString = connForm.ConnectionString;
                     AddUiLog("Параметры подключения к БД успешно обновлены.");
+                }
+            }
+        }
+
+        // Открывает окно для удобного редактирования списка компьютеров
+        private void EditComputersButton_Click(object sender, EventArgs e)
+        {
+            List<string> currentList = targetPcsTextBox.Text
+                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(pc => pc.Trim())
+                .Where(pc => !string.IsNullOrEmpty(pc))
+                .ToList();
+
+            using (ComputersForm pcsForm = new ComputersForm(currentList))
+            {
+                if (pcsForm.ShowDialog() == DialogResult.OK)
+                {
+                    targetPcsTextBox.Text = string.Join("; ", pcsForm.Addresses);
+                    AddUiLog("Обновлен список целевых ПК (всего: " + pcsForm.Addresses.Count + ").");
                 }
             }
         }
