@@ -10,29 +10,16 @@ namespace SkziScanner
     static class Program
     {
         [DllImport("kernel32.dll")]
-        static extern bool AttachConsole(int dwProcessId);
-
-        [DllImport("kernel32.dll")]
-        static extern bool AllocConsole();
-
-        [DllImport("kernel32.dll")]
-        static extern bool FreeConsole();
-
-        [DllImport("user32.dll")]
-        static extern bool PostMessage(IntPtr hWnd, uint Msg, int wParam, int lParam);
-
-        [DllImport("kernel32.dll")]
         static extern IntPtr GetConsoleWindow();
 
-        private const int ATTACH_PARENT_PROCESS = -1;
-        private const uint WM_CHAR = 0x0102;
-        private const int VK_RETURN = 0x0D;
+        [DllImport("user32.dll")]
+        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-        // Главная точка входа для приложения
+        private const int SW_HIDE = 0;
+
         [STAThread]
         static void Main(string[] args)
         {
-            // Глобальный перехват всех необработанных исключений
             Application.ThreadException += (sender, arguments) => Logger.LogError("UI Ошибка", arguments.Exception);
             AppDomain.CurrentDomain.UnhandledException += (sender, arguments) => Logger.LogError("Критическая ошибка", arguments.ExceptionObject as Exception);
 
@@ -42,38 +29,19 @@ namespace SkziScanner
 
             if (consoleMode)
             {
-                bool isAttached = AttachConsole(ATTACH_PARENT_PROCESS);
-                if (!isAttached)
-                {
-                    AllocConsole();
-                }
-
                 Console.OutputEncoding = Encoding.UTF8;
-                Console.InputEncoding = Encoding.UTF8;
-
-                Console.WriteLine();
                 Console.WriteLine("Консольный режим");
                 RunConsole(args);
-
-                if (isAttached)
-                {
-                    // Возвращаем приглашение командной строки (имитация нажатия Enter в cmd)
-                    IntPtr cw = GetConsoleWindow();
-                    if (cw != IntPtr.Zero)
-                    {
-                        PostMessage(cw, WM_CHAR, VK_RETURN, 0);
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Нажмите Enter для выхода...");
-                    Console.ReadLine();
-                    FreeConsole();
-                }
             }
             else
             {
-                // Оконный режим
+                // Скрываем окно консоли при запуске графического интерфейса
+                IntPtr handle = GetConsoleWindow();
+                if (handle != IntPtr.Zero)
+                {
+                    ShowWindow(handle, SW_HIDE);
+                }
+
                 RunGui(args);
             }
 
@@ -87,7 +55,6 @@ namespace SkziScanner
                 string pcInput = args.Skip(1).FirstOrDefault();
                 string connString = args.Skip(2).FirstOrDefault();
 
-                // Если параметры не переданы в команде запуска, запрашиваем их в этом же окне
                 if (string.IsNullOrWhiteSpace(pcInput))
                 {
                     Console.Write("Введите имена или IP компьютеров через запятую (Enter = localhost): ");
