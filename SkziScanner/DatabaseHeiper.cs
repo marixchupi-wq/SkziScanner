@@ -33,7 +33,7 @@ namespace SkziScanner
 						UpdatedAt DATETIME NOT NULL,
 						OwnerName NVARCHAR(255) NULL,
 						IssuerName NVARCHAR(255) NULL,
-						CryptoProVersion NVARCHAR(100) NULL,
+						CryptoProVersion NVARCHAR(200) NULL,
 						IsLicenseEmbedded BIT NOT NULL
 					);
 				END";
