@@ -9,23 +9,17 @@ namespace SkziScanner
 {
     static class Program
     {
-
         [DllImport("kernel32.dll")]
-        static extern bool AttachConsole(int dwProcessId);
+        static extern IntPtr GetConsoleWindow();
 
-        [DllImport("kernel32.dll")]
-        static extern bool AllocConsole();
+        [DllImport("user32.dll")]
+        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-        [DllImport("kernel32.dll")]
-        static extern bool FreeConsole();
+        private const int SW_HIDE = 0;
 
-        private const int ATTACH_PARENT_PROCESS = -1;
-
-        // Главная точка входа для приложения
         [STAThread]
         static void Main(string[] args)
         {
-            // Глобальный перехват всех необработанных исключений
             Application.ThreadException += (sender, arguments) => Logger.LogError("UI Ошибка", arguments.Exception);
             AppDomain.CurrentDomain.UnhandledException += (sender, arguments) => Logger.LogError("Критическая ошибка", arguments.ExceptionObject as Exception);
 
@@ -33,69 +27,36 @@ namespace SkziScanner
 
             bool consoleMode = args.Length > 0 && args[0] == "-console";
 
-            /*if (consoleMode)
-            {
-
-                // Пытаемся подключиться к консоли родителя (если запущено из cmd)
-                if (!AttachConsole(ATTACH_PARENT_PROCESS))
-                {
-                    // Родительской консоли нет — создаём свою
-                    AllocConsole();
-                }
-
-                Console.WriteLine();
-                Console.WriteLine("Консольный режим");
-                RunConsole(args);
-                Console.WriteLine("Нажмите Enter для выхода...");
-                Console.ReadLine();
-                FreeConsole();
-            }*/
             if (consoleMode)
             {
-                bool isAttached = AttachConsole(ATTACH_PARENT_PROCESS);
-                if (!isAttached)
-                {
-                    AllocConsole();
-                }
-
                 Console.OutputEncoding = Encoding.UTF8;
-                Console.WriteLine();
                 Console.WriteLine("Консольный режим");
                 RunConsole(args);
-
-                if (!isAttached)
-                {
-                    FreeConsole();
-                }
             }
             else
             {
-                // Оконный режим
+                // Скрываем окно консоли при запуске графического интерфейса
+                IntPtr handle = GetConsoleWindow();
+                if (handle != IntPtr.Zero)
+                {
+                    ShowWindow(handle, SW_HIDE);
+                }
+
                 RunGui(args);
             }
 
             Logger.LogInfo("Выход из приложения");
-
         }
+
         static void RunConsole(string[] args)
         {
             try
             {
-                Console.OutputEncoding = System.Text.Encoding.UTF8;
-                Console.InputEncoding = System.Text.Encoding.UTF8;
+                string pcInput = args.Skip(1).FirstOrDefault();
+                string connString = args.Skip(2).FirstOrDefault();
 
-                string pcInput = System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.Skip(args, 1));
-                string connString = System.Linq.Enumerable.FirstOrDefault(System.Linq.Enumerable.Skip(args, 2));
-
-                // Если параметры не переданы в команде запуска, запрашиваем их у пользователя
                 if (string.IsNullOrWhiteSpace(pcInput))
                 {
-                    FreeConsole();
-                    AllocConsole();
-                    Console.OutputEncoding = System.Text.Encoding.UTF8;
-                    Console.InputEncoding = System.Text.Encoding.UTF8;
-
-                    Console.WriteLine("Консольный режим");
                     Console.Write("Введите имена или IP компьютеров через запятую (Enter = localhost): ");
                     pcInput = Console.ReadLine();
 
@@ -131,11 +92,11 @@ namespace SkziScanner
 
                 foreach (CertificateInfo cert in certificates)
                 {
-                    Console.WriteLine("Серийный номер: " + cert.SerialNumber);
-                    Console.WriteLine("Владелец:       " + cert.OwnerName);
-                    Console.WriteLine("Удостоверяющий центр:             " + cert.IssuerName);
-                    Console.WriteLine("Версия КриптоПро:      " + cert.CryptoProVersion);
-                    Console.WriteLine("Встроенная лицензия: " + (cert.IsLicenseEmbedded ? "Да" : "Нет"));
+                    Console.WriteLine("Серийный номер:       " + cert.SerialNumber);
+                    Console.WriteLine("Владелец:             " + cert.OwnerName);
+                    Console.WriteLine("Удостоверяющий центр: " + cert.IssuerName);
+                    Console.WriteLine("Версия КриптоПро:     " + cert.CryptoProVersion);
+                    Console.WriteLine("Встроенная лицензия:  " + (cert.IsLicenseEmbedded ? "Да" : "Нет"));
                     Console.WriteLine(new string('-', 80));
                 }
 
@@ -156,7 +117,6 @@ namespace SkziScanner
 
         static void RunGui(string[] args)
         {
-            // Здесь код для окна (Application.Run(new MainForm()))
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainForm());
