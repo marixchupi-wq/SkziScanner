@@ -20,7 +20,7 @@ namespace SkziScanner
                 try
                 {
                     Logger.LogInfo("Подключение к реестру ПК: " + pc);
-                    string cryptoProVer = GetCryptoProVersion(pc);
+                    string cryptoProInfo = GetCryptoProVersionAndLicense(pc);
 
                     // Проверяем оба корневых раздела реестра: LocalMachine и CurrentUser
                     RegistryHive[] hives = new RegistryHive[] { RegistryHive.LocalMachine, RegistryHive.CurrentUser };
@@ -28,9 +28,14 @@ namespace SkziScanner
                     {
                         using (RegistryKey baseKey = OpenTargetRegistry(pc, hive))
                         {
+                            if (baseKey == null)
+                            {
+                                continue;
+                            }
+
                             foreach (string regPath in registryPaths)
                             {
-                                List<CertificateInfo> pcCerts = ReadCertificatesFromRegistry(baseKey, regPath, cryptoProVer);
+                                List<CertificateInfo> pcCerts = ReadCertificatesFromRegistry(baseKey, regPath, cryptoProInfo);
                                 results.AddRange(pcCerts);
                             }
                         }
@@ -45,10 +50,13 @@ namespace SkziScanner
             return results;
         }
 
-        // Открывает нужный корневой раздел реестра локально или по сети
+        // Открывает нужный корневой раздел реестра локально или по сети в 64-битном представлении
         private RegistryKey OpenTargetRegistry(string pcName, RegistryHive hive)
         {
-            if (pcName.Equals("localhost", StringComparison.OrdinalIgnoreCase) || pcName == "127.0.0.1" || pcName.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(pcName) ||
+                pcName.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                pcName == "127.0.0.1" ||
+                pcName.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase))
             {
                 return RegistryKey.OpenBaseKey(hive, RegistryView.Registry64);
             }
@@ -82,30 +90,173 @@ namespace SkziScanner
             return paths;
         }
 
-        // Определяет версию установленного КриптоПро CSP из реестра
-        private string GetCryptoProVersion(string pcName)
+        // Определяет версию и серийный номер лицензии установленного КриптоПро CSP из реестра
+        private string GetCryptoProVersionAndLicense(string pcName)
         {
             using (RegistryKey baseKey = OpenTargetRegistry(pcName, RegistryHive.LocalMachine))
             {
+                if (baseKey == null)
+                {
+                    return "Нет доступа к реестру";
+                }
+
+                string version = null;
+                string licenseNumber = null;
+
+                // 1. Поиск версии и лицензии в основных ветках КриптоПро
                 string[] possiblePaths = new string[]
                 {
+                    @"SOFTWARE\CryptoPro\Cryptography\CurrentVersion",
+                    @"SOFTWARE\WOW6432Node\CryptoPro\Cryptography\CurrentVersion",
                     @"SOFTWARE\Crypto Pro\Cryptography\CurrentVersion",
-                    @"SOFTWARE\WOW6432Node\Crypto Pro\Cryptography\CurrentVersion"
+                    @"SOFTWARE\WOW6432Node\Crypto Pro\Cryptography\CurrentVersion",
+                    @"SOFTWARE\CryptoPro\Settings",
+                    @"SOFTWARE\WOW6432Node\CryptoPro\Settings",
+                    @"SOFTWARE\Crypto Pro\Settings",
+                    @"SOFTWARE\WOW6432Node\Crypto Pro\Settings"
                 };
 
                 foreach (string path in possiblePaths)
                 {
                     using (RegistryKey key = baseKey.OpenSubKey(path))
                     {
-                        if (key != null)
+                        if (key == null)
                         {
-                            object versionObj = key.GetValue("Version");
+                            continue;
+                        }
+
+                        if (string.IsNullOrEmpty(version))
+                        {
+                            object versionObj = key.GetValue("Version") ?? key.GetValue("ProductVersion") ?? key.GetValue("DisplayVersion");
                             if (versionObj != null)
                             {
-                                return versionObj.ToString();
+                                version = versionObj.ToString();
+                            }
+                        }
+
+                        if (string.IsNullOrEmpty(licenseNumber))
+                        {
+                            object pidObj = key.GetValue("ProductID");
+                            if (pidObj != null && !string.IsNullOrWhiteSpace(pidObj.ToString()))
+                            {
+                                licenseNumber = pidObj.ToString();
                             }
                         }
                     }
+                }
+
+                // 2. Поиск через список установленных программ (Uninstall) по любому упоминанию КриптоПро / CryptoPro
+                string[] uninstallPaths = new string[]
+                {
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                    @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+                };
+
+                foreach (string uPath in uninstallPaths)
+                {
+                    using (RegistryKey uKey = baseKey.OpenSubKey(uPath))
+                    {
+                        if (uKey == null)
+                        {
+                            continue;
+                        }
+
+                        foreach (string subKeyName in uKey.GetSubKeyNames())
+                        {
+                            using (RegistryKey appKey = uKey.OpenSubKey(subKeyName))
+                            {
+                                if (appKey == null)
+                                {
+                                    continue;
+                                }
+
+                                string displayName = appKey.GetValue("DisplayName")?.ToString() ?? string.Empty;
+                                bool isCryptoPro = displayName.IndexOf("CryptoPro", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                                   displayName.IndexOf("КриптоПро", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                                if (isCryptoPro)
+                                {
+                                    if (string.IsNullOrEmpty(version))
+                                    {
+                                        string dVer = appKey.GetValue("DisplayVersion")?.ToString();
+                                        version = !string.IsNullOrEmpty(dVer) ? dVer : displayName;
+                                    }
+
+                                    if (string.IsNullOrEmpty(licenseNumber))
+                                    {
+                                        object pidObj = appKey.GetValue("ProductID");
+                                        if (pidObj != null && !string.IsNullOrWhiteSpace(pidObj.ToString()))
+                                        {
+                                            licenseNumber = pidObj.ToString();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. Проверка зарегистрированных криптопровайдеров ГОСТ (если версия не найдена в Uninstall)
+                if (string.IsNullOrEmpty(version))
+                {
+                    using (RegistryKey providersKey = baseKey.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography\Defaults\Provider"))
+                    {
+                        if (providersKey != null)
+                        {
+                            foreach (string provName in providersKey.GetSubKeyNames())
+                            {
+                                if (provName.IndexOf("Crypto-Pro", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                    provName.IndexOf("CryptoPro", StringComparison.OrdinalIgnoreCase) >= 0)
+                                {
+                                    version = "Установлен (" + provName + ")";
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 4. Дополнительный поиск ProductID в ветке Installer\UserData
+                if (!string.IsNullOrEmpty(version) && string.IsNullOrEmpty(licenseNumber))
+                {
+                    using (RegistryKey productsKey = baseKey.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products"))
+                    {
+                        if (productsKey != null)
+                        {
+                            foreach (string prodGuid in productsKey.GetSubKeyNames())
+                            {
+                                using (RegistryKey propsKey = productsKey.OpenSubKey(prodGuid + @"\InstallProperties"))
+                                {
+                                    if (propsKey == null)
+                                    {
+                                        continue;
+                                    }
+
+                                    string dName = propsKey.GetValue("DisplayName")?.ToString() ?? string.Empty;
+                                    if (dName.IndexOf("CryptoPro", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                        dName.IndexOf("КриптоПро", StringComparison.OrdinalIgnoreCase) >= 0)
+                                    {
+                                        object pidObj = propsKey.GetValue("ProductID");
+                                        if (pidObj != null && !string.IsNullOrWhiteSpace(pidObj.ToString()))
+                                        {
+                                            licenseNumber = pidObj.ToString();
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(version))
+                {
+                    if (!string.IsNullOrEmpty(licenseNumber))
+                    {
+                        return version + " (Лицензия: " + licenseNumber + ")";
+                    }
+
+                    return version + " (Лицензия не введена)";
                 }
             }
 
@@ -113,7 +264,7 @@ namespace SkziScanner
         }
 
         // Извлекает и парсит все сертификаты из указанной ветки реестра
-        private List<CertificateInfo> ReadCertificatesFromRegistry(RegistryKey baseKey, string regPath, string cryptoProVersion)
+        private List<CertificateInfo> ReadCertificatesFromRegistry(RegistryKey baseKey, string regPath, string cryptoProInfo)
         {
             List<CertificateInfo> list = new List<CertificateInfo>();
 
@@ -150,7 +301,7 @@ namespace SkziScanner
                                     SerialNumber = cert.SerialNumber,
                                     OwnerName = cert.GetNameInfo(X509NameType.SimpleName, false),
                                     IssuerName = cert.GetNameInfo(X509NameType.SimpleName, true),
-                                    CryptoProVersion = cryptoProVersion,
+                                    CryptoProVersion = cryptoProInfo,
                                     IsLicenseEmbedded = CheckEmbeddedLicense(cert)
                                 };
 
