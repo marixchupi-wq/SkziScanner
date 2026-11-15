@@ -1,9 +1,3 @@
 ﻿# Список веток реестра Windows (в разделе HKEY_LOCAL_MACHINE) для поиска сертификатов СКЗИ
 # Личные сертификаты компьютера (основное хранилище для сертификатов пользователей и КриптоПро)
 SOFTWARE\Microsoft\SystemCertificates\My\Certificates
-
-# Промежуточные центры сертификации (УЦ)
-#SOFTWARE\Microsoft\SystemCertificates\CA\Certificates
-
-# Доверенные корневые центры сертификации
-#SOFTWARE\Microsoft\SystemCertificates\Root\Certificates
