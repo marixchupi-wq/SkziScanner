@@ -266,11 +266,12 @@ namespace SkziScanner
                         "База данных (MSSQL)",
                         serial,
                         owner,
+                        created,
+                        updated,
                         issuer,
                         version,
-                        license,
-                        created,
-                        updated
+                        license
+                        
                     );
                 }
             }
