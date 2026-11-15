@@ -247,36 +247,54 @@ namespace SkziScanner
                 }
             }
 
-            // 2. Затем добавляем записи из базы данных MSSQL по точному порядку столбцов
+            // 2. Затем добавляем записи из базы данных MSSQL по точному порядку столбцов таблицы Certificates
             if (dbTable != null)
             {
                 foreach (DataRow row in dbTable.Rows)
                 {
-                    object[] items = row.ItemArray;
-                    string serial = items.Length > 0 ? items[0].ToString() : "";
-                    string owner = items.Length > 1 ? items[1].ToString() : "";
-                    string created = items.Length > 2 ? items[2].ToString() : "";
-                    string updated = items.Length > 3 ? items[3].ToString() : "";
-                    string issuer = items.Length > 4 ? items[4].ToString() : "";
-                    string version = items.Length > 5 ? items[5].ToString() : "";
-                    string licenseRaw = items.Length > 6 ? items[6].ToString() : "";
-                    string license = (licenseRaw == "True" || licenseRaw == "1") ? "Да" : "Нет";
+                    string serial = GetCellValue(row, new[] { "Серийный номер", "SerialNumber" }, 0);
+                    string created = GetCellValue(row, new[] { "Дата внесения", "CreatedAt" }, 1);
+                    string updated = GetCellValue(row, new[] { "Дата обновления", "UpdatedAt" }, 2);
+                    string owner = GetCellValue(row, new[] { "Владелец", "OwnerName" }, 3);
+                    string issuer = GetCellValue(row, new[] { "Удостоверяющий центр", "IssuerName" }, 4);
+                    string version = GetCellValue(row, new[] { "Версия КриптоПро", "CryptoProVersion" }, 5);
+                    string licenseRaw = GetCellValue(row, new[] { "Встроенная лицензия", "IsLicenseEmbedded" }, 6);
+
+                    string license = (licenseRaw.Equals("True", StringComparison.OrdinalIgnoreCase) || licenseRaw == "1" || licenseRaw.Equals("Да", StringComparison.OrdinalIgnoreCase)) ? "Да" : "Нет";
 
                     combinedTable.Rows.Add(
                         "База данных (MSSQL)",
                         serial,
                         owner,
-                        created,
-                        updated,
                         issuer,
                         version,
-                        license
-                        
+                        license,
+                        created,
+                        updated
                     );
                 }
             }
 
             return combinedTable;
+        }
+
+        // Безопасно извлекает значение ячейки по списку возможных имен столбца или по индексу
+        private string GetCellValue(DataRow row, string[] columnNames, int fallbackIndex)
+        {
+            foreach (string colName in columnNames)
+            {
+                if (row.Table.Columns.Contains(colName) && row[colName] != DBNull.Value)
+                {
+                    return row[colName].ToString();
+                }
+            }
+
+            if (row.ItemArray.Length > fallbackIndex && row.ItemArray[fallbackIndex] != null)
+            {
+                return row.ItemArray[fallbackIndex].ToString();
+            }
+
+            return string.Empty;
         }
 
         // Открывает диалоговое окно настройки параметров подключения к MSSQL
