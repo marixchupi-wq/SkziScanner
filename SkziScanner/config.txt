@@ -3,7 +3,7 @@
 SOFTWARE\Microsoft\SystemCertificates\My\Certificates
 
 # Промежуточные центры сертификации (УЦ)
-SOFTWARE\Microsoft\SystemCertificates\CA\Certificates
+#SOFTWARE\Microsoft\SystemCertificates\CA\Certificates
 
 # Доверенные корневые центры сертификации
-SOFTWARE\Microsoft\SystemCertificates\Root\Certificates
+#SOFTWARE\Microsoft\SystemCertificates\Root\Certificates

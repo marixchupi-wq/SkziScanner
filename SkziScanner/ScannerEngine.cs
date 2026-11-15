@@ -40,6 +40,33 @@ namespace SkziScanner
                             }
                         }
                     }
+
+                    // Если по веткам реестра из конфига сертификаты не нашлись, читаем напрямую из хранилища Windows
+                    if (results.Count == 0 && (pc.Equals("localhost", StringComparison.OrdinalIgnoreCase) || pc == "127.0.0.1"))
+                    {
+                        StoreLocation[] locations = new StoreLocation[] { StoreLocation.LocalMachine, StoreLocation.CurrentUser };
+                        foreach (StoreLocation loc in locations)
+                        {
+                            using (X509Store store = new X509Store(StoreName.My, loc))
+                            {
+                                store.Open(OpenFlags.ReadOnly);
+                                foreach (X509Certificate2 cert in store.Certificates)
+                                {
+                                    string embeddedVer;
+                                    bool hasLicense = CheckEmbeddedLicense(cert, out embeddedVer);
+
+                                    results.Add(new CertificateInfo
+                                    {
+                                        SerialNumber = cert.SerialNumber,
+                                        OwnerName = cert.GetNameInfo(X509NameType.SimpleName, false),
+                                        IssuerName = cert.GetNameInfo(X509NameType.SimpleName, true),
+                                        CryptoProVersion = !string.IsNullOrEmpty(embeddedVer) ? embeddedVer : cryptoProInfo,
+                                        IsLicenseEmbedded = hasLicense
+                                    });
+                                }
+                            }
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -263,60 +290,74 @@ namespace SkziScanner
             return "Не установлен";
         }
 
-        // Извлекает и парсит все сертификаты из указанной ветки реестра
-        private List<CertificateInfo> ReadCertificatesFromRegistry(RegistryKey baseKey, string regPath, string cryptoProInfo)
+        // Извлекает и парсит сертификаты из реестра и системных хранилищ Windows
+        private List<CertificateInfo> ReadCertificatesFromRegistry(RegistryKey baseKey, string regPath, string cryptoProVersion)
         {
             List<CertificateInfo> list = new List<CertificateInfo>();
 
             using (RegistryKey certsRoot = baseKey.OpenSubKey(regPath))
             {
-                if (certsRoot == null)
+                if (certsRoot != null)
                 {
-                    return list;
-                }
-
-                string[] thumbprints = certsRoot.GetSubKeyNames();
-                foreach (string thumbprint in thumbprints)
-                {
-                    try
+                    foreach (string thumbprint in certsRoot.GetSubKeyNames())
                     {
-                        using (RegistryKey certKey = certsRoot.OpenSubKey(thumbprint))
+                        try
                         {
-                            if (certKey == null)
+                            using (RegistryKey certKey = certsRoot.OpenSubKey(thumbprint))
                             {
-                                continue;
-                            }
-
-                            byte[] blob = certKey.GetValue("Blob") as byte[];
-                            if (blob == null)
-                            {
-                                continue;
-                            }
-
-                            X509Certificate2 cert = ParseCertificateFromBlob(blob);
-                            if (cert != null)
-                            {
-                                CertificateInfo info = new CertificateInfo
+                                byte[] blob = certKey?.GetValue("Blob") as byte[];
+                                if (blob != null)
                                 {
-                                    SerialNumber = cert.SerialNumber,
-                                    OwnerName = cert.GetNameInfo(X509NameType.SimpleName, false),
-                                    IssuerName = cert.GetNameInfo(X509NameType.SimpleName, true),
-                                    CryptoProVersion = cryptoProInfo,
-                                    IsLicenseEmbedded = CheckEmbeddedLicense(cert)
-                                };
+                                    X509Certificate2 cert = ParseCertificateFromBlob(blob);
+                                    if (cert != null)
+                                    {
+                                        string embeddedVer;
+                                        bool hasLicense = CheckEmbeddedLicense(cert, out embeddedVer);
 
-                                list.Add(info);
+                                        list.Add(new CertificateInfo
+                                        {
+                                            SerialNumber = cert.SerialNumber,
+                                            OwnerName = cert.GetNameInfo(X509NameType.SimpleName, false),
+                                            IssuerName = cert.GetNameInfo(X509NameType.SimpleName, true),
+                                            CryptoProVersion = !string.IsNullOrEmpty(embeddedVer) ? embeddedVer : cryptoProVersion,
+                                            IsLicenseEmbedded = hasLicense
+                                        });
+                                    }
+                                }
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogError("Ошибка разбора сертификата в реестре (" + thumbprint + ")", ex);
+                        catch (Exception ex)
+                        {
+                            Logger.LogError("Ошибка разбора сертификата (" + thumbprint + ")", ex);
+                        }
                     }
                 }
             }
 
             return list;
+        }
+
+        // Проверяет встроенную лицензию КриптоПро по OID 1.2.643.2.2.49.2 и извлекает версию
+        private bool CheckEmbeddedLicense(X509Certificate2 cert, out string embeddedVersion)
+        {
+            embeddedVersion = null;
+
+            foreach (X509Extension ext in cert.Extensions)
+            {
+                if (ext.Oid != null && ext.Oid.Value.StartsWith("1.2.643.2.2.49"))
+                {
+                    string rawText = System.Text.Encoding.ASCII.GetString(ext.RawData);
+                    System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(rawText, @"\d+\.\d+\.\d+");
+                    if (match.Success)
+                    {
+                        embeddedVersion = match.Value;
+                    }
+
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // Вырезает бинарное тело X.509 сертификата из структуры параметра Blob реестра Windows

@@ -87,11 +87,13 @@ namespace SkziScanner
 
             try
             {
+                List<CertificateInfo> foundCerts = new List<CertificateInfo>();
+
                 // Выполняем сетевое сканирование и запись в БД в фоновом потоке
                 DataTable updatedTable = await Task.Run(() =>
                 {
                     ScannerEngine scanner = new ScannerEngine();
-                    List<CertificateInfo> foundCerts = scanner.ScanComputers(targetComputers);
+                    foundCerts = scanner.ScanComputers(targetComputers);
 
                     DatabaseHelper dbHelper = new DatabaseHelper(currentConnectionString);
                     dbHelper.SaveCertificates(foundCerts);
@@ -99,8 +101,25 @@ namespace SkziScanner
                     return dbHelper.GetAllCertificates();
                 });
 
-                certificatesDataGridView.DataSource = updatedTable;
-                AddUiLog("Сканирование успешно завершено. Таблица обновлена.");
+                DataTable combinedView = BuildCombinedCertificatesTable(foundCerts, updatedTable);
+                certificatesDataGridView.Columns.Clear();
+                certificatesDataGridView.DataSource = combinedView;
+                HighlightSourceRows();
+
+                AddUiLog("Найдено на ПК: " + foundCerts.Count + ", всего в БД: " + updatedTable.Rows.Count + ".");
+
+                // Открываем диалог сохранения списка сертификатов в файл .cr
+                using (SaveFileDialog saveDialog = new SaveFileDialog())
+                {
+                    saveDialog.Filter = "Файл отчета сертификатов (*.cr)|*.cr";
+                    saveDialog.FileName = "certificates_" + DateTime.Now.ToString("dd_MM_yyyy") + ".cr";
+
+                    if (saveDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        SaveCertificatesToCrFile(foundCerts, saveDialog.FileName);
+                        AddUiLog("Список сертификатов сохранен в файл: " + saveDialog.FileName);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -140,7 +159,11 @@ namespace SkziScanner
                     return dbHelper.GetAllCertificates();
                 });
 
-                certificatesDataGridView.DataSource = table;
+                DataTable combinedView = BuildCombinedCertificatesTable(null, table);
+                certificatesDataGridView.Columns.Clear();
+                certificatesDataGridView.DataSource = combinedView;
+                HighlightSourceRows();
+
                 AddUiLog("Данные из БД загружены (строк: " + table.Rows.Count + ").");
             }
             catch (Exception ex)
@@ -165,6 +188,94 @@ namespace SkziScanner
             logsTextBox.AppendText(timeStamp + " - " + message + Environment.NewLine);
             logsTextBox.SelectionStart = logsTextBox.Text.Length;
             logsTextBox.ScrollToCaret();
+        }
+
+        // Сохраняет список найденных сертификатов в файл с расширением .cr
+        private void SaveCertificatesToCrFile(List<CertificateInfo> certificates, string filePath)
+        {
+            List<string> lines = new List<string>();
+            lines.Add("Серийный номер;Владелец;Удостоверяющий центр;Версия КриптоПро;Встроенная лицензия;Дата выгрузки");
+
+            string exportDate = DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss");
+            foreach (CertificateInfo cert in certificates)
+            {
+                string licenseStatus = cert.IsLicenseEmbedded ? "Да" : "Нет";
+                string line = string.Format("{0};{1};{2};{3};{4};{5}",
+                    cert.SerialNumber,
+                    cert.OwnerName,
+                    cert.IssuerName,
+                    cert.CryptoProVersion,
+                    licenseStatus,
+                    exportDate);
+
+                lines.Add(line);
+            }
+
+            File.WriteAllLines(filePath, lines, System.Text.Encoding.UTF8);
+        }
+
+        // Объединяет сертификаты с ПК и из БД в одну таблицу с указанием источника
+        private DataTable BuildCombinedCertificatesTable(List<CertificateInfo> pcCerts, DataTable dbTable)
+        {
+            DataTable combinedTable = new DataTable();
+            combinedTable.Columns.Add("Источник данных", typeof(string));
+            combinedTable.Columns.Add("Серийный номер", typeof(string));
+            combinedTable.Columns.Add("Владелец", typeof(string));
+            combinedTable.Columns.Add("Удостоверяющий центр", typeof(string));
+            combinedTable.Columns.Add("Версия КриптоПро", typeof(string));
+            combinedTable.Columns.Add("Встроенная лицензия", typeof(string));
+            combinedTable.Columns.Add("Дата внесения", typeof(string));
+            combinedTable.Columns.Add("Дата обновления", typeof(string));
+
+            string currentTime = DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss");
+
+            // 1. Сначала добавляем всё, что прямо сейчас нашлось на компьютерах
+            if (pcCerts != null)
+            {
+                foreach (CertificateInfo cert in pcCerts)
+                {
+                    combinedTable.Rows.Add(
+                        "Компьютер (Сканирование)",
+                        cert.SerialNumber,
+                        cert.OwnerName,
+                        cert.IssuerName,
+                        cert.CryptoProVersion,
+                        cert.IsLicenseEmbedded ? "Да" : "Нет",
+                        currentTime,
+                        currentTime
+                    );
+                }
+            }
+
+            // 2. Затем добавляем записи из базы данных MSSQL по точному порядку столбцов
+            if (dbTable != null)
+            {
+                foreach (DataRow row in dbTable.Rows)
+                {
+                    object[] items = row.ItemArray;
+                    string serial = items.Length > 0 ? items[0].ToString() : "";
+                    string owner = items.Length > 1 ? items[1].ToString() : "";
+                    string created = items.Length > 2 ? items[2].ToString() : "";
+                    string updated = items.Length > 3 ? items[3].ToString() : "";
+                    string issuer = items.Length > 4 ? items[4].ToString() : "";
+                    string version = items.Length > 5 ? items[5].ToString() : "";
+                    string licenseRaw = items.Length > 6 ? items[6].ToString() : "";
+                    string license = (licenseRaw == "True" || licenseRaw == "1") ? "Да" : "Нет";
+
+                    combinedTable.Rows.Add(
+                        "База данных (MSSQL)",
+                        serial,
+                        owner,
+                        issuer,
+                        version,
+                        license,
+                        created,
+                        updated
+                    );
+                }
+            }
+
+            return combinedTable;
         }
 
         // Открывает диалоговое окно настройки параметров подключения к MSSQL
@@ -195,6 +306,24 @@ namespace SkziScanner
                 {
                     targetPcsTextBox.Text = string.Join("; ", pcsForm.Addresses);
                     AddUiLog("Обновлен список целевых ПК (всего: " + pcsForm.Addresses.Count + ").");
+                }
+            }
+        }
+
+        // Подсвечивает строки, полученные напрямую с ПК, чтобы визуально отделить их от записей из БД
+        private void HighlightSourceRows()
+        {
+            foreach (DataGridViewRow row in certificatesDataGridView.Rows)
+            {
+                if (row.IsNewRow)
+                {
+                    continue;
+                }
+
+                string source = row.Cells[0].Value?.ToString();
+                if (source != null && source.StartsWith("Компьютер"))
+                {
+                    row.DefaultCellStyle.BackColor = System.Drawing.Color.AliceBlue;
                 }
             }
         }
